@@ -1,4 +1,8 @@
-import ELK, { ElkNode, LayoutOptions } from "elkjs";
+import ELK, { ElkNode, LayoutOptions } from "elkjs/lib/elk-api";
+// import ELK, { ElkNode, LayoutOptions } from "elkjs";
+import { Worker as ElkWorker } from "elkjs/lib/elk-worker";
+// import ElkWorker from "elkjs/lib/elk-worker";
+// import { Worker } from "elkjs/lib/elk-worker";
 
 import { NodeType, nodeTypes } from "../../../common/node";
 import { nodeHeightPx, nodeWidthPx } from "../components/Node/EditableNode.styles";
@@ -33,7 +37,19 @@ const priorities = Object.fromEntries(nodeTypes.map((type, index) => [type, inde
   [type in NodeType]: string;
 };
 
-const elk = new ELK();
+const elk = new ELK({
+  // workerUrl: "./elk-worker.js",
+  // workerUrl: "./elk-worker.min.js",
+  // workerUrl: "./elk-worker.bundle.js",
+  // workerUrl: "./node_modules/elkjs/lib/elk-worker.min.js",
+  // workerUrl: "./elkjs/lib/elk-worker.min.js",
+  // workerFactory: (url) => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // const { Worker } = require("elkjs/lib/elk-worker.js");
+  // return new Worker("blah");
+  // },
+  workerFactory: (url) => new ElkWorker(url),
+});
 
 // sort by source priority, then target priority
 const compareEdges = (edge1: Edge, edge2: Edge, nodes: Node[]) => {
@@ -49,6 +65,19 @@ const compareEdges = (edge1: Edge, edge2: Edge, nodes: Node[]) => {
   if (sourceCompare !== 0) return sourceCompare;
 
   return Number(priorities[target1.type]) - Number(priorities[target2.type]);
+};
+
+const throwAfterTimeout = async <T>(timeout: number, promise: Promise<T>): Promise<T> => {
+  const result = Promise.race([
+    new Promise((_, reject) =>
+      setTimeout(() => {
+        console.log("rejecting");
+        reject(new Error("timeout"));
+      }, timeout)
+    ),
+    promise,
+  ]);
+  return result as Promise<T>;
 };
 
 export interface NodePosition {
@@ -81,6 +110,7 @@ export const layout = async (
     "elk.partitioning.activate": "true",
     // ensure node islands don't overlap (needed for when node has 3 rows of text)
     "elk.spacing.componentComponent": "30", // default is 20
+    // "elk.layered.crossingMinimization.greedySwitch.type": "OFF",
   };
 
   const graph: ElkNode = {
@@ -105,7 +135,7 @@ export const layout = async (
       // This is a requirement for the claim tree but less so for the topic diagram - if performance
       // in the diagram is a concern, this can probably just be done in the tree (and maybe `position`
       // would be more suited for the diagram, see https://github.com/kieler/elkjs/issues/21#issuecomment-382574679).
-      .sort((edge1, edge2) => compareEdges(edge1, edge2, nodes))
+      // .sort((edge1, edge2) => compareEdges(edge1, edge2, nodes))
       .map((edge) => {
         return { id: edge.id, sources: [edge.source], targets: [edge.target] };
       }),
@@ -114,11 +144,26 @@ export const layout = async (
   // hack to try laying out without partition if partitions cause error
   // see https://github.com/eclipse/elk/issues/969
   try {
-    const layoutedGraph = await elk.layout(graph, {
+    console.log("trying laying out");
+
+    const layoutPromise = elk.layout(graph, {
       layoutOptions,
       logging: true,
       measureExecutionTime: true,
     });
+
+    console.log("layout promise started");
+
+    const layoutedGraph = await throwAfterTimeout(3000, layoutPromise);
+    // const layoutedGraph = await throwAfterTimeout(1, layoutPromise);
+
+    // const layoutedGraph = await elk.layout(graph, {
+    //   layoutOptions,
+    //   logging: true,
+    //   measureExecutionTime: true,
+    // });
+
+    console.log("layout successful", layoutedGraph);
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return layoutedGraph.children!.map((node) => {
@@ -126,11 +171,15 @@ export const layout = async (
       return { id: node.id, x: node.x!, y: node.y! };
     });
   } catch (error) {
+    console.log("caught, laying out");
+
     const layoutedGraph = await elk.layout(graph, {
       layoutOptions: { ...layoutOptions, "elk.partitioning.activate": "false" },
       logging: true,
       measureExecutionTime: true,
     });
+
+    console.log("layout successful");
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return layoutedGraph.children!.map((node) => {

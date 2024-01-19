@@ -51,7 +51,7 @@
     "@trpc/next": "10.34.0",
     "@trpc/react-query": "10.34.0",
     "@trpc/server": "10.34.0",
-    "elkjs": "0.8.2",
+    "elkjs": "0.9.1",
     "framer-motion": "^10.16.5",
     "immer": "10.0.2",
     "js-file-download": "0.4.12",
