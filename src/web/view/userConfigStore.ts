@@ -2,11 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface UserConfigStoreState {
+  showIndicators: boolean;
   fillNodesWithColor: boolean;
   indicateWhenNodeForcedToShow: boolean;
 }
 
 const initialState: UserConfigStoreState = {
+  showIndicators: false,
   fillNodesWithColor: false,
   indicateWhenNodeForcedToShow: false,
 };
@@ -18,6 +20,10 @@ const useUserConfigStore = create<UserConfigStoreState>()(
 );
 
 // hooks
+export const useShowIndicators = () => {
+  return useUserConfigStore((state) => state.showIndicators);
+};
+
 export const useFillNodesWithColor = () => {
   return useUserConfigStore((state) => state.fillNodesWithColor);
 };
@@ -27,6 +33,10 @@ export const useIndicateWhenNodeForcedToShow = () => {
 };
 
 // actions
+export const toggleShowIndicators = () => {
+  useUserConfigStore.setState((state) => ({ showIndicators: !state.showIndicators }));
+};
+
 export const toggleFillNodesWithColor = (fill: boolean) => {
   useUserConfigStore.setState({ fillNodesWithColor: fill });
 };

@@ -9,6 +9,7 @@ import {
   Highlight,
   QuestionMark,
   Redo,
+  TabUnselected,
   Undo,
 } from "@mui/icons-material";
 import { AppBar, Divider, IconButton, ToggleButton, Toolbar, Tooltip } from "@mui/material";
@@ -19,10 +20,12 @@ import { useSessionUser } from "@/web/common/hooks";
 import { HelpMenu } from "@/web/topic/components/TopicWorkspace/HelpMenu";
 import { MoreActionsDrawer } from "@/web/topic/components/TopicWorkspace/MoreActionsDrawer";
 import { deleteGraphPart } from "@/web/topic/store/createDeleteActions";
+import { useIsTableEdge } from "@/web/topic/store/edgeHooks";
 import { useOnPlayground } from "@/web/topic/store/topicHooks";
 import { useUserCanEditTopicData } from "@/web/topic/store/userHooks";
 import { redo, undo } from "@/web/topic/store/utilActions";
 import { useTemporalHooks } from "@/web/topic/store/utilHooks";
+import { hotkeys } from "@/web/topic/utils/hotkeys";
 import {
   toggleFlashlightMode,
   toggleReadonlyMode,
@@ -40,19 +43,24 @@ import {
   resetPerspectives,
   useIsComparingPerspectives,
 } from "@/web/view/perspectiveStore";
+import { toggleShowIndicators, useShowIndicators } from "@/web/view/userConfigStore";
 
 export const WorkspaceToolbar = () => {
   const { sessionUser } = useSessionUser();
   const userCanEditTopicData = useUserCanEditTopicData(sessionUser?.username);
+
   const onPlayground = useOnPlayground();
   const [canUndo, canRedo] = useTemporalHooks();
   const [canGoBack, canGoForward] = useCanGoBackForward();
+
+  const showIndicators = useShowIndicators();
   const isComparingPerspectives = useIsComparingPerspectives();
   const flashlightMode = useFlashlightMode();
   const readonlyMode = useReadonlyMode();
   const [hasErrored, setHasErrored] = useState(false);
 
   const selectedGraphPart = useSelectedGraphPart();
+  const partIsTableEdge = useIsTableEdge(selectedGraphPart?.id ?? "");
 
   const [isMoreActionsDrawerOpen, setIsMoreActionsDrawerOpen] = useState(false);
   const [helpAnchorEl, setHelpAnchorEl] = useState<null | HTMLElement>(null);
@@ -124,7 +132,8 @@ export const WorkspaceToolbar = () => {
                   deleteGraphPart(selectedGraphPart);
                 }
               }}
-              disabled={!selectedGraphPart}
+              // don't allow modifying edges that are part of the table, because they should always exist as long as their nodes do
+              disabled={!selectedGraphPart || partIsTableEdge}
               className="hidden sm:flex"
             >
               <Delete />
@@ -132,10 +141,23 @@ export const WorkspaceToolbar = () => {
           </>
         )}
 
+        <Divider orientation="vertical" flexItem />
+
+        <ToggleButton
+          value={showIndicators}
+          title={`Show indicators (${hotkeys.showIndicators})`}
+          aria-label={`Show indicators (${hotkeys.showIndicators})`}
+          color="primary"
+          size="small"
+          selected={showIndicators}
+          onClick={() => toggleShowIndicators()}
+          className="rounded-full border-none"
+        >
+          <TabUnselected />
+        </ToggleButton>
+
         {!onPlayground && (
           <>
-            <Divider orientation="vertical" flexItem />
-
             <ToggleButton
               value={isComparingPerspectives}
               title="Compare perspectives"
@@ -146,7 +168,7 @@ export const WorkspaceToolbar = () => {
               onClick={() =>
                 isComparingPerspectives ? resetPerspectives() : comparePerspectives()
               }
-              sx={{ borderRadius: "50%", border: "0" }}
+              className="rounded-full border-none"
             >
               <Group />
             </ToggleButton>
@@ -166,7 +188,7 @@ export const WorkspaceToolbar = () => {
             size="small"
             selected={flashlightMode}
             onClick={() => toggleFlashlightMode(!flashlightMode)}
-            sx={{ borderRadius: "50%", border: "0" }}
+            className="hidden rounded-full border-none sm:flex" // hide on mobile because there's not enough space
           >
             <Highlight />
           </ToggleButton>
@@ -175,13 +197,13 @@ export const WorkspaceToolbar = () => {
         {readonlyMode && (
           <ToggleButton
             value={readonlyMode}
-            title="Read-only mode"
-            aria-label="Read-only mode"
+            title={`Read-only mode (${hotkeys.readonlyMode})`}
+            aria-label={`Read-only mode (${hotkeys.readonlyMode})`}
             color="primary"
             size="small"
             selected={readonlyMode}
             onClick={() => toggleReadonlyMode()}
-            sx={{ borderRadius: "50%", border: "0" }}
+            className="rounded-full border-none"
           >
             <EditOff />
           </ToggleButton>
@@ -229,12 +251,10 @@ export const WorkspaceToolbar = () => {
             <IconButton
               color="error"
               aria-label="Error info"
-              sx={{
-                // Don't make it look like clicking will do something, since it won't.
-                // Using a button here is an attempt to make it accessible, since the tooltip will show
-                // on focus.
-                cursor: "default",
-              }}
+              // Don't make it look like clicking will do something, since it won't.
+              // Using a button here is an attempt to make it accessible, since the tooltip will show
+              // on focus.
+              className="cursor-default"
             >
               <Error />
             </IconButton>

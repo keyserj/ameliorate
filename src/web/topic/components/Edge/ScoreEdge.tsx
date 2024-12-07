@@ -27,6 +27,7 @@ import { useUserCanEditTopicData } from "@/web/topic/store/userHooks";
 import { Edge } from "@/web/topic/utils/graph";
 import { useUnrestrictedEditing } from "@/web/view/actionConfigStore";
 import { setSelected, useDrawSimpleEdgePaths } from "@/web/view/currentViewStore/store";
+import { useShowIndicators } from "@/web/view/userConfigStore";
 
 const flowMarkerId = "flowMarker";
 const nonFlowMarkerId = "nonFlowMarker";
@@ -95,7 +96,9 @@ interface Props {
 export const ScoreEdge = ({ inReactFlow, ...flowEdge }: EdgeProps & Props) => {
   const { sessionUser } = useSessionUser();
   const userCanEditTopicData = useUserCanEditTopicData(sessionUser?.username);
+
   const unrestrictedEditing = useUnrestrictedEditing();
+  const showIndicators = useShowIndicators();
   const drawSimpleEdgePaths = useDrawSimpleEdgePaths();
 
   const edge = convertToEdge(flowEdge);
@@ -125,6 +128,21 @@ export const ScoreEdge = ({ inReactFlow, ...flowEdge }: EdgeProps & Props) => {
     />
   );
 
+  /**
+   * Allow edges to be more-easily hovered/clicked, based on a wider width than what is visibly drawn.
+   * Taken from react flow's implementation https://github.com/xyflow/xyflow/blob/616d2665235447e0280368228ac64b987afecba0/packages/react/src/components/Edges/BaseEdge.tsx#L35-L43
+   */
+  const hiddenInteractivePath = (
+    <path
+      className="react-flow__edge-interaction"
+      d={pathDefinition}
+      fill="none"
+      strokeOpacity={0}
+      strokeWidth={20}
+      onClick={() => setSelected(edge.id)}
+    />
+  );
+
   const labelText = edge.data.customLabel ?? lowerCase(edge.label);
 
   const label = (
@@ -134,6 +152,16 @@ export const ScoreEdge = ({ inReactFlow, ...flowEdge }: EdgeProps & Props) => {
       onClick={() => setSelected(edge.id)}
       onContextMenu={(event) => openContextMenu(event, { edge })}
       spotlight={spotlight}
+      className={
+        // pointer-events and cursor are set because this div is within an SVG and doesn't handle pointer-events properly by default
+        "[pointer-events:all] cursor-default flex flex-col items-center justify-center bg-white p-1 rounded-xl" +
+        // when hiding indicators, div only contains the label text, so border doesn't seem necessary (if this looks awkward, we can always show border instead)
+        (!showIndicators && spotlight === "normal" ? " border-none" : "") +
+        // allow other components to apply conditional css related to this edge, e.g. when it's hovered/selected
+        // separate from react-flow__edge because sometimes edges are rendered outside of react-flow (e.g. details pane), and we still want to style these
+        " diagram-edge" +
+        (flowEdge.selected ? " selected" : "")
+      }
     >
       <CommonIndicators graphPart={edge} notes={edge.data.notes} />
       <Typography
@@ -165,6 +193,7 @@ export const ScoreEdge = ({ inReactFlow, ...flowEdge }: EdgeProps & Props) => {
         {/* shouldn't need an svg marker def per edge, but it's easiest to just put here */}
         {svgMarkerDef(inReactFlow, spotlight)}
         {path}
+        {hiddenInteractivePath}
 
         {/* see for example usage https://reactflow.dev/docs/api/edges/edge-label-renderer/ */}
         <EdgeLabelRenderer>{label}</EdgeLabelRenderer>
