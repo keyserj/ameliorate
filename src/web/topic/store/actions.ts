@@ -131,3 +131,23 @@ export const setGraphPartNotes = (graphPart: GraphPart, value: string) => {
 
   useTopicStore.setState(finishDraft(state), false, "setGraphPartNotes");
 };
+
+export const deleteGraphPart = (graphPartId: string) => {
+  const state = createDraft(useTopicStore.getState());
+  const foundGraphPart = findGraphPartOrThrow(graphPartId, state.nodes, state.edges);
+
+  const updatedNodes = state.nodes.filter((node) => node.id !== foundGraphPart.id);
+  const updatedEdges = state.edges.filter((edge) => 
+      edge.source !== foundGraphPart.id && edge.target !== foundGraphPart.id
+  );
+
+  useTopicStore.setState(
+      finishDraft({
+          ...state,
+          nodes: updatedNodes,
+          edges: updatedEdges
+      }),
+      false,
+      "deleteGraphPart"
+  );
+};

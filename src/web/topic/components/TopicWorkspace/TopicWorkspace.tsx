@@ -15,7 +15,7 @@ import { TourSetter } from "@/web/topic/components/TopicWorkspace/TourSetter";
 import { TutorialAnchor } from "@/web/topic/components/TopicWorkspace/TutorialAnchor";
 import { TutorialController } from "@/web/topic/components/TopicWorkspace/TutorialController";
 import { WorkspaceContext } from "@/web/topic/components/TopicWorkspace/WorkspaceContext";
-import { setScore } from "@/web/topic/store/actions";
+import { deleteGraphPart, setScore } from "@/web/topic/store/actions";
 import { playgroundUsername } from "@/web/topic/store/store";
 import { isOnPlayground } from "@/web/topic/store/utilActions";
 import { Score, possibleScores } from "@/web/topic/utils/graph";
@@ -37,10 +37,16 @@ const useWorkspaceHotkeys = (user: { username: string } | null | undefined) => {
     const [score] = hotkeysEvent.keys;
     if (!score || !possibleScores.some((s) => score === s)) return;
 
-    // seems slightly awkward that there's logic here not reused with the Score component, but hard to reuse that in a clean way
     const myUsername = isOnPlayground() ? playgroundUsername : user?.username;
     if (!userCanEditScores(myUsername, getPerspectives(), getReadonlyMode())) return;
     setScore(myUsername, selectedPart.id, score as Score);
+  });
+
+  useHotkeys([hotkeys.delete || "del"], () => {
+    const selectedPart = getSelectedGraphPart();
+    if (selectedPart?.id) {
+      deleteGraphPart(selectedPart.id);
+    }
   });
 };
 
@@ -56,7 +62,6 @@ export const TopicWorkspace = () => {
   const useSplitPanes = isLandscape && usingBigScreen;
 
   return (
-    // h-svh to force workspace to take up full height of screen
     <div className="relative flex h-svh flex-col">
       <AppHeader />
 
@@ -94,7 +99,6 @@ export const TopicWorkspace = () => {
           </WorkspaceContext.Provider>
         )}
 
-        {/* prevents body scrolling when workspace is rendered*/}
         <Global styles={{ body: { overflow: "hidden" } }} />
       </div>
 
